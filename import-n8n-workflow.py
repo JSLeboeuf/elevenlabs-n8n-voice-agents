@@ -5,12 +5,13 @@ Nettoie automatiquement le JSON et gère les erreurs
 """
 
 import json
+import os
 import requests
 import sys
 from typing import Dict, Any
 
 # Configuration
-N8N_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3N2FlZWEyYy1mZjkwLTRiMGQtYWQxOC02MzQxNDNmZWYxMTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU0MzY3OTU2LCJleHAiOjE3NjIxNDYwMDB9.L8uqtMJyuSMEgCQdSaEGhMMB4nZZeAIoSZthgvtw0uI"
+N8N_API_KEY = os.environ.get('N8N_API_KEY', '[YOUR_N8N_API_KEY]')
 N8N_BASE_URL = "https://autoscaleai2001.app.n8n.cloud"
 WORKFLOW_FILE = "workflows/appointment-booking-system.json"
 

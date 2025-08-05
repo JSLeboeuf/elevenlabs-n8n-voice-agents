@@ -1,0 +1,243 @@
+{
+  "name": "Appointment Booking System",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "appointment-webhook",
+        "options": {}
+      },
+      "id": "webhook_receiver",
+      "name": "Receive ElevenLabs Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tool }}",
+              "operation": "equals",
+              "value2": "check"
+            }
+          ]
+        }
+      },
+      "id": "check_action",
+      "name": "Check Action Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simuler la vérification des disponibilités\nconst requestedTime = $json.startTime || 'demain 9h';\nconst name = $json.name || 'Client';\n\n// Parser la date demandée\nlet dateTime;\nif (requestedTime.includes('demain')) {\n  const tomorrow = new Date();\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  \n  // Extraire l'heure si mentionnée\n  const hourMatch = requestedTime.match(/(\\d+)h/);\n  if (hourMatch) {\n    tomorrow.setHours(parseInt(hourMatch[1]), 0, 0, 0);\n  } else {\n    tomorrow.setHours(9, 0, 0, 0); // Par défaut 9h\n  }\n  dateTime = tomorrow;\n} else {\n  dateTime = new Date(requestedTime);\n}\n\n// Créneaux disponibles (simulation)\nconst availableSlots = [];\nconst baseDate = new Date(dateTime);\n\n// Générer 5 créneaux d'1 heure\nfor (let i = 0; i < 5; i++) {\n  const slot = new Date(baseDate);\n  slot.setHours(baseDate.getHours() + i);\n  \n  // Vérifier si c'est dans les heures de bureau (9h-17h)\n  if (slot.getHours() >= 9 && slot.getHours() < 17) {\n    availableSlots.push({\n      time: slot.toISOString(),\n      display: slot.toLocaleString('fr-FR', {\n        weekday: 'long',\n        day: 'numeric',\n        month: 'long',\n        hour: 'numeric',\n        minute: 'numeric'\n      })\n    });\n  }\n}\n\nreturn {\n  status: 'available',\n  message: `Bonjour ${name}, j'ai trouvé ${availableSlots.length} créneaux disponibles.`,\n  slots: availableSlots,\n  suggestedSlot: availableSlots[0]\n};"
+      },
+      "id": "check_availability",
+      "name": "Check Available Slots",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Réserver le créneau\nconst name = $json.name || 'Client';\nconst email = $json.email || '';\nconst startTime = $json.startTime;\n\n// Parser et formater la date\nlet appointmentDate;\nif (startTime.includes('demain')) {\n  const tomorrow = new Date();\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  \n  const hourMatch = startTime.match(/(\\d+)h/);\n  if (hourMatch) {\n    tomorrow.setHours(parseInt(hourMatch[1]), 0, 0, 0);\n  } else {\n    tomorrow.setHours(9, 0, 0, 0);\n  }\n  appointmentDate = tomorrow;\n} else {\n  appointmentDate = new Date(startTime);\n}\n\n// Générer un ID de confirmation\nconst confirmationId = 'RDV-' + Date.now().toString(36).toUpperCase();\n\n// Créer l'objet de rendez-vous\nconst appointment = {\n  id: confirmationId,\n  name: name,\n  email: email,\n  dateTime: appointmentDate.toISOString(),\n  displayDateTime: appointmentDate.toLocaleString('fr-FR', {\n    weekday: 'long',\n    day: 'numeric',\n    month: 'long',\n    year: 'numeric',\n    hour: 'numeric',\n    minute: 'numeric'\n  }),\n  status: 'confirmed',\n  createdAt: new Date().toISOString()\n};\n\nreturn {\n  status: 'booked',\n  message: `Parfait ${name}! J'ai réservé votre rendez-vous pour ${appointment.displayDateTime}. Votre numéro de confirmation est ${confirmationId}.`,\n  appointment: appointment,\n  confirmationId: confirmationId\n};"
+      },
+      "id": "book_appointment",
+      "name": "Book Appointment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $credentials.googleSheets.sheetId }}",
+        "range": "Rendez-vous!A:F",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "values": {
+          "values": [
+            [
+              "={{ $json.appointment.id }}",
+              "={{ $json.appointment.name }}",
+              "={{ $json.appointment.email }}",
+              "={{ $json.appointment.displayDateTime }}",
+              "={{ $json.appointment.status }}",
+              "={{ $json.appointment.createdAt }}"
+            ]
+          ]
+        }
+      },
+      "id": "save_to_sheets",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [850, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "appointments@autoscaleai.ca",
+        "toEmail": "={{ $json.appointment.email }}",
+        "subject": "Confirmation de votre rendez-vous - {{ $json.appointment.confirmationId }}",
+        "emailType": "html",
+        "htmlBody": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n  <h2 style=\"color: #2792dc;\">Confirmation de rendez-vous</h2>\n  \n  <p>Bonjour {{ $json.appointment.name }},</p>\n  \n  <p>Votre rendez-vous a été confirmé avec succès!</p>\n  \n  <div style=\"background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;\">\n    <h3 style=\"margin-top: 0;\">Détails du rendez-vous:</h3>\n    <p><strong>Date et heure:</strong> {{ $json.appointment.displayDateTime }}</p>\n    <p><strong>Numéro de confirmation:</strong> {{ $json.appointment.confirmationId }}</p>\n  </div>\n  \n  <p>Si vous devez modifier ou annuler ce rendez-vous, veuillez nous contacter.</p>\n  \n  <p>Cordialement,<br>\n  L'équipe AutoScale AI</p>\n</div>",
+        "options": {}
+      },
+      "id": "send_confirmation",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1050, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response",
+              "name": "response",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare_response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "lastNodeOutput",
+        "responseBody": {
+          "responseBody": "={{ $json }}"
+        },
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_to_webhook",
+      "name": "Respond to ElevenLabs",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "content": "## 🗓️ Appointment Booking Workflow\n\nCe workflow gère les demandes de l'agent vocal ElevenLabs:\n\n1. **Check** - Vérifie les créneaux disponibles\n2. **Book** - Réserve le rendez-vous\n3. Sauvegarde dans Google Sheets\n4. Envoie email de confirmation\n\n### Configuration requise:\n- Google Sheets credentials\n- Email SMTP credentials",
+        "height": 223.6734693877551,
+        "width": 354.2857142857143
+      },
+      "id": "sticky_note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [220, 80]
+    }
+  ],
+  "connections": {
+    "webhook_receiver": {
+      "main": [
+        [
+          {
+            "node": "check_action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_action": {
+      "main": [
+        [
+          {
+            "node": "check_availability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "book_appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_availability": {
+      "main": [
+        [
+          {
+            "node": "prepare_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book_appointment": {
+      "main": [
+        [
+          {
+            "node": "save_to_sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_to_sheets": {
+      "main": [
+        [
+          {
+            "node": "send_confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_confirmation": {
+      "main": [
+        [
+          {
+            "node": "prepare_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_response": {
+      "main": [
+        [
+          {
+            "node": "respond_to_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

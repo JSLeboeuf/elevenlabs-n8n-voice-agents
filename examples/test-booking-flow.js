@@ -6,7 +6,7 @@
 const axios = require('axios');
 
 // Configuration
-const WEBHOOK_URL = 'https://autoscaleai2001.app.n8n.cloud/webhook-test/appointment-webhook';
+const WEBHOOK_URL = 'https://autoscaleai2001.app.n8n.cloud/webhook/appointment-webhook';
 
 async function testWebhook(data) {
   try {
