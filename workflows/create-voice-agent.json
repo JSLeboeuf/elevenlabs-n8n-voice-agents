@@ -1,0 +1,266 @@
+{
+  "name": "Create ElevenLabs Voice Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "create-voice-agent",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/convai/agents/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $credentials.elevenLabsApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_config",
+              "value": "={{ { name: $json.name || 'Assistant' } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "createAgent",
+      "name": "Create Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.elevenlabs.io/v1/convai/agents/{{ $json.agent_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $credentials.elevenLabsApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: $('webhook').item.json.name,\n  conversation_config: {\n    agent: {\n      prompt: {\n        prompt: $('webhook').item.json.prompt\n      },\n      language: $('webhook').item.json.language || 'fr'\n    },\n    tts: {\n      model_id: $('webhook').item.json.model || 'eleven_turbo_v2_5',\n      voice_id: $('webhook').item.json.voiceId || 'pNInz6obpgDQGcFmaJgB'\n    }\n  }\n}) }}"
+      },
+      "id": "updateAgent",
+      "name": "Update Agent Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('webhook').item.json.createTool }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "checkTool",
+      "name": "Should Create Tool?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/convai/tools",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $credentials.elevenLabsApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: $('webhook').item.json.toolName || 'checkavailability',\n  tool_config: {\n    type: 'webhook',\n    name: $('webhook').item.json.toolName || 'checkavailability',\n    description: $('webhook').item.json.toolDescription || 'Process request',\n    webhook: {\n      url: $('webhook').item.json.webhookUrl,\n      method: 'POST'\n    },\n    api_schema: {\n      url: $('webhook').item.json.webhookUrl,\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json'\n      },\n      request_body_schema: $('webhook').item.json.toolSchema || {\n        type: 'object',\n        properties: {}\n      }\n    }\n  }\n}) }}"
+      },
+      "id": "createTool",
+      "name": "Create Tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.elevenlabs.io/v1/convai/agents/{{ $('updateAgent').item.json.agent_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $credentials.elevenLabsApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  conversation_config: {\n    agent: {\n      prompt: {\n        tool_ids: [$json.id]\n      }\n    }\n  }\n}) }}"
+      },
+      "id": "addToolToAgent",
+      "name": "Add Tool to Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Agent créé avec succès"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mergeData",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "createAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "createAgent": {
+      "main": [
+        [
+          {
+            "node": "updateAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "updateAgent": {
+      "main": [
+        [
+          {
+            "node": "checkTool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checkTool": {
+      "main": [
+        [
+          {
+            "node": "createTool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "mergeData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "createTool": {
+      "main": [
+        [
+          {
+            "node": "addToolToAgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "addToolToAgent": {
+      "main": [
+        [
+          {
+            "node": "mergeData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mergeData": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "elevenlabs-voice-agent-creator"
+  }
+}

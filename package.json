@@ -1,0 +1,37 @@
+{
+  "name": "elevenlabs-n8n-voice-agents",
+  "version": "1.0.0",
+  "description": "Automatisation complète pour créer des agents vocaux ElevenLabs via n8n workflows",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node examples/test-agent.js",
+    "create-agent": "node tools/create-agent-cli.js"
+  },
+  "keywords": [
+    "elevenlabs",
+    "n8n",
+    "voice",
+    "ai",
+    "agents",
+    "automation"
+  ],
+  "author": "AutoScale AI",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JSLeboeuf/elevenlabs-n8n-voice-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JSLeboeuf/elevenlabs-n8n-voice-agents/issues"
+  },
+  "homepage": "https://github.com/JSLeboeuf/elevenlabs-n8n-voice-agents#readme"
+}
