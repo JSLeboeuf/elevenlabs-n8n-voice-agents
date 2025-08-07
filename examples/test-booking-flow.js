@@ -4,9 +4,10 @@
  */
 
 const axios = require('axios');
+require('dotenv').config();
 
 // Configuration
-const WEBHOOK_URL = 'https://autoscaleai2001.app.n8n.cloud/webhook/appointment-webhook';
+const WEBHOOK_URL = process.env.TEST_WEBHOOK_URL || (process.env.N8N_WEBHOOK_URL ? `${process.env.N8N_WEBHOOK_URL}/appointment-webhook` : 'https://autoscaleai2001.app.n8n.cloud/webhook-test/appointment-webhook');
 
 async function testWebhook(data) {
   try {

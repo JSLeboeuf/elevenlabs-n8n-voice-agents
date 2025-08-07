@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node examples/test-agent.js",
     "demo": "node examples/test-agent.js",
+    "mock:webhook": "node tools/mock-n8n-webhook.js",
     "test": "node -e \"console.log('No test suite')\"",
     "create-agent": "node tools/create-agent-cli.js"
   },
