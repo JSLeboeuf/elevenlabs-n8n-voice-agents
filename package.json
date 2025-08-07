@@ -7,6 +7,7 @@
     "start": "node examples/test-agent.js",
     "demo": "node examples/test-agent.js",
     "mock:webhook": "node tools/mock-n8n-webhook.js",
+    "demo:mock": "node tools/mock-n8n-webhook.js & sleep 1 && node -e \"process.env.TEST_WEBHOOK_URL='http://127.0.0.1:3000/webhook/appointment-webhook'; require('./examples/test-booking-flow.js')\""
     "test": "node -e \"console.log('No test suite')\"",
     "create-agent": "node tools/create-agent-cli.js"
   },
@@ -24,7 +25,8 @@
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "body-parser": "^1.20.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

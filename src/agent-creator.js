@@ -10,13 +10,17 @@ class AgentCreator {
     this.client = new ElevenLabsClient(apiKey);
   }
 
+  static _validateWebhookUrl(url) {
+    return typeof url === 'string' && url.startsWith('http');
+  }
+
   /**
    * Créer un agent de prise de rendez-vous
    */
   async createAppointmentAgent(config = {}) {
     const defaultConfig = {
       name: config.name || 'Assistant Rendez-vous',
-      language: config.language || 'fr',
+      language: config.language || process.env.DEFAULT_LANGUAGE || 'fr',
       voiceId: config.voiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID,
       prompt: config.prompt || `Assistant vocal pour prise de rendez-vous.
         Demande poliment le nom, l'email et l'heure souhaitée.
@@ -25,6 +29,10 @@ class AgentCreator {
         Parle en français de manière professionnelle et amicale.`,
       webhookUrl: config.webhookUrl || ((process.env.N8N_WEBHOOK_URL || '') + '/appointment-webhook')
     };
+
+    if (!AgentCreator._validateWebhookUrl(defaultConfig.webhookUrl)) {
+      throw new Error('Webhook URL invalide. Fournissez config.webhookUrl ou définissez N8N_WEBHOOK_URL');
+    }
 
     // Créer le tool
     const toolResult = await this.client.createTool({
