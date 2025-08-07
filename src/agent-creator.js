@@ -23,7 +23,7 @@ class AgentCreator {
         Utilise le tool checkavailability pour vérifier les disponibilités.
         Confirme toujours les informations avant de finaliser.
         Parle en français de manière professionnelle et amicale.`,
-      webhookUrl: config.webhookUrl || process.env.N8N_WEBHOOK_URL + '/appointment'
+      webhookUrl: config.webhookUrl || ((process.env.N8N_WEBHOOK_URL || '') + '/appointment-webhook')
     };
 
     // Créer le tool
