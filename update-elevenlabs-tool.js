@@ -2,12 +2,13 @@
  * Met à jour le tool ElevenLabs avec la bonne URL du webhook n8n
  */
 
+require('dotenv').config();
 const axios = require('axios');
 
 // Configuration
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '[YOUR_API_KEY_HERE]';
-const TOOL_ID = 'tool_5101k1w8h1p2eprvsbeeqctbr94w';
-const WEBHOOK_URL = 'https://autoscaleai2001.app.n8n.cloud/webhook/appointment-webhook';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const TOOL_ID = process.env.ELEVENLABS_TOOL_ID;
+const WEBHOOK_URL = process.env.N8N_WEBHOOK_URL ? `${process.env.N8N_WEBHOOK_URL}/appointment-webhook` : undefined;
 
 async function updateTool() {
   const url = `https://api.elevenlabs.io/v1/convai/conversation/update_tool/${TOOL_ID}`;
@@ -47,6 +48,9 @@ async function updateTool() {
   };
 
   try {
+    if (!ELEVENLABS_API_KEY || !TOOL_ID || !WEBHOOK_URL) {
+      throw new Error('Variables manquantes: ELEVENLABS_API_KEY, ELEVENLABS_TOOL_ID, N8N_WEBHOOK_URL');
+    }
     console.log('🔧 Mise à jour du tool ElevenLabs...');
     console.log(`   Tool ID: ${TOOL_ID}`);
     console.log(`   Webhook URL: ${WEBHOOK_URL}`);
@@ -55,7 +59,8 @@ async function updateTool() {
       headers: {
         'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: Number(process.env.HTTP_TIMEOUT_MS || 15000)
     });
 
     console.log('\n✅ Tool mis à jour avec succès!');

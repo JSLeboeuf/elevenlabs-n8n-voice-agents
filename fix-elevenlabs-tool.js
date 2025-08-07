@@ -2,14 +2,19 @@
  * Crée ou met à jour le tool ElevenLabs pour le webhook n8n
  */
 
+require('dotenv').config();
 const ElevenLabsClient = require('./src/elevenlabs-client');
 
 // Configuration
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '[YOUR_API_KEY_HERE]';
-const AGENT_ID = 'agent_6701k1w6p61qeaebesj0bvqdt5b9';
-const WEBHOOK_URL = 'https://autoscaleai2001.app.n8n.cloud/webhook/appointment-webhook';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const AGENT_ID = process.env.ELEVENLABS_AGENT_ID;
+const WEBHOOK_URL = process.env.N8N_WEBHOOK_URL ? `${process.env.N8N_WEBHOOK_URL}/appointment-webhook` : undefined;
 
 async function setupTool() {
+  if (!ELEVENLABS_API_KEY || !AGENT_ID || !WEBHOOK_URL) {
+    console.error('❌ Variables manquantes. Requiert ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID, N8N_WEBHOOK_URL');
+    process.exit(1);
+  }
   const client = new ElevenLabsClient(ELEVENLABS_API_KEY);
   
   console.log('🔧 Configuration du tool ElevenLabs pour le webhook n8n...\n');

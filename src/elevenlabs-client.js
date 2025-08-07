@@ -13,6 +13,22 @@ class ElevenLabsClient {
       'xi-api-key': apiKey,
       'Content-Type': 'application/json'
     };
+    const timeoutMs = Number(process.env.HTTP_TIMEOUT_MS || 15000);
+    this.http = axios.create({ baseURL: this.baseURL, headers: this.headers, timeout: timeoutMs });
+  }
+
+  async _request(config, retries = 2) {
+    try {
+      return await this.http.request(config);
+    } catch (error) {
+      const status = error.response?.status;
+      if (retries > 0 && (status === 429 || (status >= 500 && status <= 599))) {
+        const backoffMs = (3 - retries) * 500;
+        await new Promise(r => setTimeout(r, backoffMs));
+        return this._request(config, retries - 1);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -21,22 +37,23 @@ class ElevenLabsClient {
   async createAgent(config) {
     try {
       // Créer l'agent de base
-      const createResponse = await axios.post(
-        `${this.baseURL}/convai/agents/create`,
-        {
+      const createResponse = await this._request({
+        method: 'POST',
+        url: '/convai/agents/create',
+        data: {
           conversation_config: {
             name: config.name || 'Assistant'
           }
-        },
-        { headers: this.headers }
-      );
+        }
+      });
 
       const agentId = createResponse.data.agent_id;
 
       // Configurer l'agent complet
-      const updateResponse = await axios.patch(
-        `${this.baseURL}/convai/agents/${agentId}`,
-        {
+      const updateResponse = await this._request({
+        method: 'PATCH',
+        url: `/convai/agents/${agentId}`,
+        data: {
           name: config.name,
           conversation_config: {
             agent: {
@@ -44,16 +61,15 @@ class ElevenLabsClient {
                 prompt: config.prompt,
                 tool_ids: config.toolIds || []
               },
-              language: config.language || 'fr'
+              language: config.language || process.env.DEFAULT_LANGUAGE || 'fr'
             },
             tts: {
-              model_id: config.model || 'eleven_turbo_v2_5',
+              model_id: config.model || process.env.DEFAULT_MODEL || 'eleven_turbo_v2_5',
               voice_id: config.voiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID
             }
           }
-        },
-        { headers: this.headers }
-      );
+        }
+      });
 
       return {
         success: true,
@@ -74,9 +90,10 @@ class ElevenLabsClient {
    */
   async createTool(config) {
     try {
-      const response = await axios.post(
-        `${this.baseURL}/convai/tools`,
-        {
+      const response = await this._request({
+        method: 'POST',
+        url: '/convai/tools',
+        data: {
           name: config.name,
           tool_config: {
             type: 'webhook',
@@ -98,9 +115,8 @@ class ElevenLabsClient {
               }
             }
           }
-        },
-        { headers: this.headers }
-      );
+        }
+      });
 
       return {
         success: true,
@@ -117,23 +133,28 @@ class ElevenLabsClient {
   }
 
   /**
-   * Lier un tool à un agent
+   * Lier un tool à un agent (en fusionnant avec les tools existants)
    */
   async addToolToAgent(agentId, toolId) {
     try {
-      const response = await axios.patch(
-        `${this.baseURL}/convai/agents/${agentId}`,
-        {
+      // Récupérer la config actuelle pour merger les tool_ids
+      const current = await this._request({ method: 'GET', url: `/convai/agents/${agentId}` });
+      const existingToolIds = current.data?.conversation_config?.agent?.prompt?.tool_ids || [];
+      const mergedToolIds = Array.from(new Set([...existingToolIds, toolId]));
+
+      const response = await this._request({
+        method: 'PATCH',
+        url: `/convai/agents/${agentId}`,
+        data: {
           conversation_config: {
             agent: {
               prompt: {
-                tool_ids: [toolId]
+                tool_ids: mergedToolIds
               }
             }
           }
-        },
-        { headers: this.headers }
-      );
+        }
+      });
 
       return {
         success: true,
@@ -153,11 +174,7 @@ class ElevenLabsClient {
    */
   async getAgent(agentId) {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/convai/agents/${agentId}`,
-        { headers: this.headers }
-      );
-
+      const response = await this._request({ method: 'GET', url: `/convai/agents/${agentId}` });
       return {
         success: true,
         data: response.data
@@ -175,11 +192,7 @@ class ElevenLabsClient {
    */
   async listAgents() {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/convai/agents`,
-        { headers: this.headers }
-      );
-
+      const response = await this._request({ method: 'GET', url: '/convai/agents' });
       return {
         success: true,
         data: response.data
@@ -197,11 +210,7 @@ class ElevenLabsClient {
    */
   async deleteAgent(agentId) {
     try {
-      await axios.delete(
-        `${this.baseURL}/convai/agents/${agentId}`,
-        { headers: this.headers }
-      );
-
+      await this._request({ method: 'DELETE', url: `/convai/agents/${agentId}` });
       return {
         success: true,
         message: 'Agent supprimé'
@@ -219,11 +228,7 @@ class ElevenLabsClient {
    */
   async getVoices() {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/voices`,
-        { headers: this.headers }
-      );
-
+      const response = await this._request({ method: 'GET', url: '/voices' });
       return {
         success: true,
         voices: response.data.voices
